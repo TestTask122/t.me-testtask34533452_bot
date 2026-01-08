@@ -7,128 +7,116 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>Aesthetic XO</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
-        body { font-family: 'Montserrat', sans-serif; background-color: #FAF7F6; color: #5A4B48; }
-        .cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border-radius: 1.25rem; background: #FFF; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 25px -5px rgba(243, 225, 222, 0.6); }
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&display=swap');
+        body { font-family: 'Montserrat', sans-serif; background: #FAF7F6; color: #5A4B48; }
+        .cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border-radius: 1.25rem; background: #FFF; cursor: pointer; transition: 0.3s; box-shadow: 0 8px 20px rgba(243, 225, 222, 0.6); }
         .cell:active { transform: scale(0.95); }
-        .win-line { color: #C28E82; font-weight: 600; }
-        .ai-line { color: #D1D1D1; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-6">
 
-    <div class="w-full max-w-xs animate-fadeIn">
-        <header class="text-center mb-10">
-            <h1 class="text-xs tracking-[0.4em] uppercase opacity-50 font-semibold">Tic Tac Toe</h1>
-            <div class="h-[1px] w-12 bg-[#C28E82] mx-auto mt-2 opacity-30"></div>
-        </header>
+    <div class="w-full max-w-xs">
+        <h1 class="text-center text-[10px] tracking-[0.4em] uppercase opacity-40 mb-10">Pure Relaxation</h1>
         
-        <!-- Игровое поле -->
         <div id="board" class="grid grid-cols-3 gap-4"></div>
 
-        <!-- Состояния игры -->
-        <div id="result" class="hidden mt-12 text-center">
-            <!-- Блок победы -->
+        <div id="result" class="hidden mt-10 text-center animate-in fade-in duration-500">
             <div id="win-ui" class="hidden">
-                <div class="bg-white p-6 rounded-[2.5rem] shadow-xl border border-rose-50 mb-6">
-                    <p class="text-[10px] uppercase tracking-widest opacity-50 mb-2">Ваш эксклюзивный код</p>
-                    <p id="promo-display" class="text-4xl font-light text-[#C28E82] tracking-tighter"></p>
+                <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-rose-50 mb-4">
+                    <p class="text-[10px] uppercase tracking-widest opacity-50 mb-2">Ваш промокод</p>
+                    <p id="promo-code" class="text-3xl font-light text-[#C28E82]"></p>
                 </div>
-                <p class="text-sm opacity-70 mb-8">Победа за вами!</p>
             </div>
-
-            <!-- Блок проигрыша -->
-            <div id="loss-ui" class="hidden mb-8">
-                <p class="text-sm opacity-60 italic mb-2">В этот раз не повезло...</p>
-                <p class="text-base uppercase tracking-widest font-semibold">Сыграем ещё раз?</p>
-            </div>
-
-            <button onclick="resetGame()" class="w-full py-4 bg-[#C28E82] text-white rounded-2xl shadow-lg hover:bg-[#AD7D72] transition-all text-[11px] tracking-[0.2em] font-bold uppercase">
-                Начать заново
-            </button>
+            <p id="status-text" class="text-sm opacity-70 mb-6"></p>
+            <button onclick="reset()" class="w-full py-4 bg-[#C28E82] text-white rounded-2xl shadow-lg uppercase text-[10px] tracking-widest font-bold">Сыграть ещё раз</button>
         </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.headerColor = '#FAF7F6';
 
+        // ВСТАВИЛ ТОКЕН ПРЯМО В КОД, ТАК КАК ЭТО ТЕСТОВОЕ ЗАДАНИЕ.
+        const BOT_TOKEN = '8549672402:AAFAHaBKi00cdIZkxzHmB4GsRSP0SN6n75g'; 
         const userId = tg.initDataUnsafe?.user?.id;
-        let board = Array(9).fill(null);
-        let gameActive = true;
 
-        async function notify(text) {
-            if (!userId) return;
-            await fetch('/api/notify', {
+        let board = Array(9).fill(null);
+        let active = true;
+
+        async function sendTg(text) {
+            if (!userId || !BOT_TOKEN) return;
+            // Прямой запрос к API Telegram (монолит)
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, userId })
+                body: JSON.stringify({ chat_id: userId, text: text })
             });
         }
 
-        function checkWinner(b) {
-            const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-            for (let [a,b,c] of lines) if (b[a] && b[a] === b[b] && b[a] === b[c]) return b[a];
-            return b.includes(null) ? null : 'draw';
+        function checkWinner() {
+            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            for (let [a,b,c] of wins) {
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
+            }
+            return board.includes(null) ? null : 'draw';
         }
 
         function render() {
-            const grid = document.getElementById('board');
-            grid.innerHTML = '';
-            board.forEach((val, i) => {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.innerHTML = val === 'X' ? '<span class="win-line">✕</span>' : (val === 'O' ? '<span class="ai-line">○</span>' : '');
-                cell.onclick = () => handleMove(i);
-                grid.appendChild(cell);
+            const b = document.getElementById('board');
+            b.innerHTML = '';
+            board.forEach((v, i) => {
+                const c = document.createElement('div');
+                c.className = 'cell';
+                c.style.color = v === 'X' ? '#C28E82' : '#D1D1D1';
+                c.innerText = v || '';
+                c.onclick = () => move(i);
+                b.appendChild(c);
             });
         }
 
-        function handleMove(i) {
-            if (!gameActive || board[i]) return;
+        function move(i) {
+            if (!active || board[i]) return;
             board[i] = 'X';
             render();
-            const res = checkWinner(board);
-            if (res) return finish(res);
-            
-            gameActive = false; // Блок на время хода ИИ
-            setTimeout(aiMove, 600);
+            const res = checkWinner();
+            if (res) return end(res);
+            active = false;
+            setTimeout(ai, 500);
         }
 
-        function aiMove() {
+        function ai() {
             const empty = board.map((v, i) => v === null ? i : null).filter(v => v !== null);
-            if (empty.length > 0) {
+            if (empty.length) {
                 board[empty[Math.floor(Math.random() * empty.length)]] = 'O';
                 render();
-                const res = checkWinner(board);
-                if (res) finish(res);
-                else gameActive = true;
+                const res = checkWinner();
+                if (res) end(res);
+                else active = true;
             }
         }
 
-        function finish(winner) {
-            gameActive = false;
-            const resultDiv = document.getElementById('result');
-            resultDiv.classList.remove('hidden');
-
-            if (winner === 'X') {
-                const promo = Math.floor(10000 + Math.random() * 90000);
-                document.getElementById('promo-display').innerText = promo;
+        function end(res) {
+            active = false;
+            document.getElementById('result').classList.remove('hidden');
+            if (res === 'X') {
+                const code = Math.floor(10000 + Math.random() * 90000);
+                document.getElementById('promo-code').innerText = code;
                 document.getElementById('win-ui').classList.remove('hidden');
-                notify(`Победа! Промокод выдан: ${promo}`);
-            } else if (winner === 'O') {
-                document.getElementById('loss-ui').classList.remove('hidden');
-                notify(`Проигрыш`);
+                document.getElementById('status-text').innerText = 'Победа за вами!';
+                sendTg(`Победа! Промокод выдан: ${code}`);
+            } else if (res === 'O') {
+                document.getElementById('status-text').innerText = 'Предлагаем сыграть ещё раз?';
+                sendTg('Проигрыш');
+            } else {
+                document.getElementById('status-text').innerText = 'Ничья';
             }
         }
 
-        function resetGame() {
+        function reset() {
             board = Array(9).fill(null);
-            gameActive = true;
+            active = true;
             document.getElementById('result').classList.add('hidden');
             document.getElementById('win-ui').classList.add('hidden');
-            document.getElementById('loss-ui').classList.add('hidden');
             render();
         }
 
@@ -136,3 +124,5 @@
     </script>
 </body>
 </html>
+
+
